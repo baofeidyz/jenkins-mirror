@@ -1,0 +1,48 @@
+name: 更新 Jenkins 镜像
+
+on:
+  schedule:
+    # 每周日 00:00 UTC 执行
+    - cron: '0 0 * * 0'
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 Git
+        run: |
+          git config --local user.email "baofeidyz@gmail.com"
+          git config --local user.name "baofeidyz"
+
+      - name: 执行更新脚本
+        run: |
+          chmod +x ./update-center-aliyun.sh
+          ./update-center-aliyun.sh
+
+      - name: 检查是否有变更
+        id: check_changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提交变更
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git add update-center-aliyun.json
+          git commit -m "chore: 更新 Jenkins 镜像配置 $(date +'%Y-%m-%d')"
+
+      - name: 推送变更
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git push origin main
